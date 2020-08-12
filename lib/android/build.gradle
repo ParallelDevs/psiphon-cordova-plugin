@@ -1,3 +1,31 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:06689b518b9da57a67a253a50d0a7017a0ed4457b90b4c4e175a7411808f6beb
-size 604
+
+// Plugin configuration
+
+repositories {    
+  jcenter()
+  flatDir {
+      dirs 'libs'
+   }
+
+     maven {
+           url "https://raw.github.com/Psiphon-Labs/psiphon-tunnel-core-Android-library/master"
+       }
+}
+
+cdvPluginPostBuildExtras.add({
+
+    android.packagingOptions {
+        exclude 'META-INF/LICENSE'
+        exclude 'META-INF/LICENSE.txt'
+        exclude 'META-INF/LICENSE.md'
+        exclude 'META-INF/DEPENDENCIES'
+        exclude 'META-INF/NOTICE'
+    }
+
+    dependencies {
+        //compile(name: 'ca.psiphon', ext: 'aar')
+  implementation 'ca.psiphon:psiphontunnel:2.+'
+        compile group: 'org.apache.httpcomponents', name: 'httpcore', version: '4.4.8'
+        compile group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.5.3'
+    }
+});

@@ -32,6 +32,8 @@ public class Psiphon extends CordovaPlugin implements PsiphonTunnel.HostService 
 
   private VpnService vpnService = new VpnService();
 
+  private CallbackContext callbackStartContext;
+
   @Override
   protected void pluginInitialize() {
     mLocalHttpProxyPort = new AtomicInteger(0);
@@ -46,46 +48,53 @@ public class Psiphon extends CordovaPlugin implements PsiphonTunnel.HostService 
   @Override
   public boolean execute(String action, JSONArray data, final CallbackContext callbackContext) throws JSONException {
 
-    if (action.equals("config")) {
-      config = data.getString(0);
-      callbackContext.success();
-
-      return true;
-    } else if (action.equals("pause")) {
-      cordova.getThreadPool().execute(new Runnable() {
-        public void run() {
-          mPsiphonTunnel.stop();
-          callbackContext.success();
-        }
-      });
-
-      return true;
-    } else if (action.equals("start")) {
-      cordova.getThreadPool().execute(new Runnable() {
-        public void run() {
-          try {
-            mPsiphonTunnel.startRouting();
-            mPsiphonTunnel.startTunneling("");
-            callbackContext.success();
-          } catch (PsiphonTunnel.Exception e) {
-            logMessage("failed to start Psiphon");
+    switch (action) {
+      case "config":
+        config = data.getString(0);
+        callbackContext.success();
+        return true;
+      case "pause":
+        cordova.getThreadPool().execute(new Runnable() {
+          public void run() {
             mPsiphonTunnel.stop();
-            callbackContext.error(e.getMessage());
+            callbackContext.success();
           }
-        }
-      });
+        });
 
-      return true;
-    } else if (action.equals("port")) {
-      int port = mLocalHttpProxyPort.get();
-      int[] ports = new int[] { port };
-      callbackContext.success(new JSONArray(ports));
+        return true;
+      case "start":
+        cordova.getThreadPool().execute(new Runnable() {
+          public void run() {
+            callbackStartContext = callbackContext;
+            connectPsiphon(callbackContext);
+          }
+        });
 
-      return true;
-    } else {
-      return false;
+        return true;
+      case "port":
+        int port = mLocalHttpProxyPort.get();
+        int[] ports = new int[]{port};
+        callbackContext.success(new JSONArray(ports));
+
+        return true;
+      default:
+        return false;
+    }
+
+
+
+
+  }
+
+  void connectPsiphon(CallbackContext callbackContext){
+    try {
+      this.mPsiphonTunnel.startTunneling("");
+
+    } catch (PsiphonTunnel.Exception e) {
+      callbackContext.error(e.getMessage());
     }
   }
+
 
   //----------------------------------------------------------------------------------------------
   // NOTE: these are callbacks from the Psiphon Library
@@ -162,6 +171,9 @@ public class Psiphon extends CordovaPlugin implements PsiphonTunnel.HostService 
   @Override
   public void onConnected() {
     logMessage("connected");
+    if ((callbackStartContext != null)){
+      callbackStartContext.success();
+    }
     cordova.getThreadPool().execute(new Runnable() {
       public void run() {
         WebViewProxySettings.setLocalProxy(getContext(), mLocalHttpProxyPort.get());
